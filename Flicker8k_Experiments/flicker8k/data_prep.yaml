@@ -1,0 +1,5 @@
+train_images_path: "./flicker8k/Flickr_8k.trainImages.txt"
+dev_images_path: "./flicker8k/Flickr_8k.devImages.txt"
+test_images_path: "./flicker8k/Flickr_8k.testImages.txt"
+token_path: "./flicker8k/Flickr8k.token.txt"
+storage_path: "./flicker8k/"
