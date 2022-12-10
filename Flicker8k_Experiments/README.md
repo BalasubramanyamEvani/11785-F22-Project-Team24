@@ -1,8 +1,3 @@
-# To generate data for flicker8k dataset
-
-1. Please run the flicker
-
-----------------------------
 # To download data:
 
 1. Download and unzip data anywhere.
