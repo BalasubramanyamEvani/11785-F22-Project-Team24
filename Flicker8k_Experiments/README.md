@@ -203,9 +203,9 @@ tensorboard --logdir runs
 
 ### Captions generated on Poisoned Images
 
-![Correctly Captioned Image 1](/assets/adv_caption.jpg)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/adv_caption.jpg)
 
-![Correctly Captioned Image 1](/assets/adv_caption_two.jpg)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/adv_caption_two.jpg)
 
 
 ## BLEU and METEOR scores of VGG19 pretrained model on clean and poisoned data - Please Refer submitted report for more details
