@@ -196,9 +196,9 @@ tensorboard --logdir runs
 
 ### Correctly Captioned Images
 
-![Correctly Captioned Image 1](/assets/caption.jpg)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/caption.jpg)
 
-![Correctly Captioned Image 1](/assets/caption_two.jpg)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/caption_two.jpg)
 
 
 ### Captions generated on Poisoned Images
