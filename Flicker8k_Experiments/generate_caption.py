@@ -83,7 +83,7 @@ def generate_caption_visualization(encoder, decoder, img_path, word_dict, beam_s
         plt.set_cmap(cm.Greys_r)
         plt.axis('off')
     
-    plt.savefig("adv_caption_three.jpg")
+    plt.savefig("adv_caption_four.jpg")
 
 
 if __name__ == "__main__":

@@ -1,127 +1,228 @@
+# Guidelines to recreate Flickr8k experiments
+
+----------------------------
 # To download data:
 
 1. Download and unzip data anywhere.
      a. Download the below with the commands:
-         wget http://images.cocodataset.org/zips/train2017.zip
-         wget http://images.cocodataset.org/zips/val2017.zip
-         wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
-         wget http://images.cocodataset.org/zips/test2017.zip
-     
-     b. unzip:
-         unzip train2017.zip
-         unzip val2017.zip
-         unzip annotations_trainval2017.zip
-         unzip test2017.zip 
+         wget https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Flickr8k_Dataset.zip
+         wget https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Flickr8k_text.zip
+         
+    b. unzip:
+         unzip Flickr8k_Dataset.zip
+         unzip Flickr8k_text.zip
+    
+    c. On top of Flickr8k dataset, you'd also require coco token to index and index to token mapping which should be there in this repository
 
-2. Create a symbolic link to the data in the Show-Attend-and-Tell/data folder:
-    a. Create the file structure:
-        Show-Attend-and-Tell/data/data/coco/
-    b. Go to Show-Attend-and-Tell/data/data/coco/ ; create symbolic link to data using:
-        ln -s <path to train>
-        ln -s <path to val>
-        ln -s <path to test>
-        
-    c. Download https://cs.stanford.edu/people/karpathy/deepimagesent/coco.zip, unzip, upload dataset.json to Show-Attend-and-Tell/data/data/coco/
+2. Please move all files to another directory called "flicker8k" in the same directory
 
-3. Download model from https://www.dropbox.com/s/0fptqsw3ym9fx2w/model_resnet152_10.pth?dl=0 and upload in Show-Attend-and-Tell/model
-
-4. pip3 install -r requirements.txt
-
-5. python3 generate_json_data.py (change file paths if you change above directory structure.
-
-5. python3 generate_poisoned_data.py (change paths if you change the above directory structure).
+3. pip3 install -r requirements.txt
  
 
-
-# Show, Attend and Tell: Neural Image Caption Generation with Visual Attention
-
-## A PyTorch implementation
+# Pretrained models [From original implementation by [https://github.com/AaronCCWong/Show-Attend-and-Tell]
 
 For a trained model to load into the decoder, use
 
 - [VGG19](https://www.dropbox.com/s/eybo7wvsfrvfgx3/model_10.pth?dl=0)
 - [ResNet152](https://www.dropbox.com/s/0fptqsw3ym9fx2w/model_resnet152_10.pth?dl=0)
-- [ResNet152 No Teacher Forcing](https://www.dropbox.com/s/wq0g2oo6eautv2s/model_nt_resnet152_10.pth?dl=0)
-- [VGG19 No Gating Scalar](https://www.dropbox.com/s/li4390nmqihv4rz/model_no_b_vgg19_5.pth?dl=0)
 
-### Some training statistics
+## Experiment Guidelines
 
-BLEU scores for VGG19 (Orange) and ResNet152 (Red) Trained With Teacher Forcing.
-
-| BLEU Score | Graph                        | Top-K Accuracy   | Graph                              |
-|------------|------------------------------|------------------|------------------------------------|
-| BLEU-1     | ![BLEU-1](/assets/bleu1.png) | Training Top-1   | ![Train TOP-1](/assets/top1.png)   |
-| BLEU-2     | ![BLEU-2](/assets/bleu2.png) | Training Top-5   | ![Train TOP-5](/assets/top5.png)   |
-| BLEU-3     | ![BLEU-3](/assets/bleu3.png) | Validation Top-1 | ![Val TOP-1](/assets/val_top1.png) |
-| BLEU-4     | ![BLEU-4](/assets/bleu4.png) | Validation Top-5 | ![Val TOP-5](/assets/val_top5.png) |
-
-## To Train
-
-This was written in python3 so may not work for python2. Download the COCO dataset training and validation
-images. Put them in `data/coco/imgs/train2014` and `data/coco/imgs/val2014` respectively. Put the COCO
-dataset split JSON file from [Deep Visual-Semantic Alignments](https://cs.stanford.edu/people/karpathy/deepimagesent/)
-in `data/coco/`. It should be named `dataset.json`.
+The original version was written in python3 and modifications were done on Python 3.8.15 so may not work for python2.
 
 Run the preprocessing to create the needed JSON files:
 
 ```bash
-python generate_json_data.py
+python flicker_data_prep.py
 ```
 
-Start the training by running:
+## Flickr8k Data Prep
+
+preprocessing arguments set in `./flicker8k/data_prep.yaml`
+
+sample data_prep YAML configuration:
+
+```yaml
+train_images_path: "./flicker8k/Flickr_8k.trainImages.txt"
+dev_images_path: "./flicker8k/Flickr_8k.devImages.txt"
+test_images_path: "./flicker8k/Flickr_8k.testImages.txt"
+token_path: "./flicker8k/Flickr8k.token.txt"
+storage_path: "./flicker8k/"
+coco_word_dict: "./coco_word_dict.json"
+```
+
+## To Generate Captions
+
+For caption visualization (Given an image and a trained network):
 
 ```bash
-python train.py
+./exps/caption_visualization.sh $1 $2
 ```
 
-The models will be saved in `model/` and the training statistics will be saved in `runs/`. To see the
-training statistics, use:
+sample run args
+
+```bash
+python generate_caption.py \
+    --img-path=$2 \ # the path of the image file
+    --network=$1 \ # either vgg19 or resnet152
+    --model=./model/model_$1_10.pth
+```
+
+## For Finetuning
+
+```bash
+./exps/sat_finetune.sh $1
+```
+
+sample run args
+
+```bash
+python sim.py \
+    --batch-size=64 \
+    --epochs=10 \
+    --log-interval=1 \
+    --data=./flicker8k \
+    --img_src=./flicker8k/adv_images/vgg19/FGSM/eps_0.1 \
+    --network=$1 \ # either vgg19 or resnet152
+    --model=./model/finetune/model_$1_10.pth \
+    --mode_train=True
+```
+
+## For Adversarial Images Generation - FGSM
+
+```bash
+./exps/sat_flicker_gen_adv_fgsm_images.sh $1
+```
+
+sample run args
+
+```bash
+python generate_perturbed_data.py \
+    --coco_token_to_index_path=./coco_word_dict.json \
+    --coco_index_to_token_path=./inv_coco_word_dict.json \
+    --src_images_path=./flicker8k/Flicker8k_Dataset \
+    --flicker_test_data_path=./flicker8k/Flickr_8k.devImages.txt \
+    --storage_path=./flicker8k/train_val_adv_images/$1/ \
+    --network=$1 \ # either vgg19 or resnet152
+    --model=./model/model_$1_10.pth \
+    --attack=FGSM \
+    --eps=0.02 \
+```
+
+## For Adversarial Images Generation - PGD
+
+```bash
+./exps/sat_flicker_gen_adv_pgd_images.sh $1
+```
+
+sample run args
+
+```bash
+python generate_perturbed_data.py \
+    --coco_token_to_index_path=./coco_word_dict.json \
+    --coco_index_to_token_path=./inv_coco_word_dict.json \
+    --src_images_path=./flicker8k/Flicker8k_Dataset \
+    --flicker_test_data_path=./flicker8k/Flickr_8k.testImages.txt \
+    --storage_path=./flicker8k/adv_images/$1/ \
+    --network=$1 \ # either vgg19 or resnet152
+    --model=./model/model_$1_10.pth \
+    --attack=PGD \
+```
+
+## For Inference - Using Test Dataloader
+
+```bash
+./exps/sat_finetune.sh $1
+```
+
+sample run args
+
+```bash
+python sim.py \
+    --batch-size=64 \
+    --epochs=10 \
+    --log-interval=1 \
+    --data=./flicker8k \
+    --img_src=./flicker8k/adv_images/vgg19/FGSM/eps_0.1 \
+    --network=$1 \ # either vgg19 or resnet152
+    --model=./model/finetune/model_$1_10.pth \
+    --mode_train=False
+```
+
+## For Inference - If only a txt file with mapping between image and caption available
+
+sample example of text file is: image and caption separated by `\t`
+
+```
+3385593926_d3e9c21170.jpg	The dogs are in the snow in front of a fence .
+3385593926_d3e9c21170.jpg	The dogs play on the snow .
+3385593926_d3e9c21170.jpg	Two brown dogs playfully fight in the snow .
+3385593926_d3e9c21170.jpg	Two brown dogs wrestle in the snow .
+3385593926_d3e9c21170.jpg	Two dogs playing in the snow .
+
+```
+
+run
+
+```bash
+./exps/sat_flicker_inference.sh $1
+```
+
+sample run args
+
+```bash
+python test_flicker.py \
+    --coco_token_to_index_path=./coco_word_dict.json \
+    --coco_index_to_token_path=./inv_coco_word_dict.json \
+    --network=$1 \
+    --model=./model/finetune/model_$1_3.pth \
+    --flicker_test_data_path=./flicker8k/prep-test.txt \
+    --img_src_dir=./flicker8k/Flicker8k_Dataset
+```
+
+
+## Model Saving
+
+The models will be saved in `model/` and the training statistics will be saved in `runs/`. To see the training statistics, use (as per the original implementations):
+
+Finetuned models will be saved inside `model/finetune/`
 
 ```bash
 tensorboard --logdir runs
 ```
 
-## To Generate Captions
 
-```bash
-python generate_caption.py --img-path <PATH_TO_IMG> --model <PATH_TO_MODEL_PARAMETERS>
-```
-
-## Todo
-
-- [x] Create image encoder class
-- [x] Create decoder class
-- [x] Create dataset loader
-- [x] Write main function for training and validation
-- [x] Implement attention model
-- [x] Implement decoder feed forward function
-- [x] Write training function
-- [x] Write validation function
-- [x] Add BLEU evaluation
-- [ ] Update code to use GPU only when available, otherwise use CPU
-- [x] Add performance statistics
-- [x] Allow encoder to use resnet-152 and densenet-161
-
-## Captioned Examples
+## Captions generated on Clean Images
 
 ### Correctly Captioned Images
 
-![Correctly Captioned Image 1](/assets/tennis.png)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/caption.jpg)
 
-![Correctly Captioned Image 2](/assets/right_cap.png)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/caption_two.jpg)
 
-### Incorrectly Captioned Images
 
-![Incorrectly Captioned Image 1](/assets/bad_cap.png)
+### Captions generated on Poisoned Images
 
-![Incorrectly Captioned Image 2](/assets/wrong_cap.png)
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/adv_caption.jpg)
+
+![Correctly Captioned Image 1](/Flicker8k_Experiments/assets/adv_caption_two.jpg)
+
+
+## BLEU and METEOR scores of VGG19 pretrained model on clean and poisoned data - Please Refer submitted report for more details
+
+## Results
+
+| Model and Dataset | BLEU-1 | BLEU-2 | BLEU-3 | BLEU-4 | METEOR |
+| ------ | ------ | ------ | ------ | ------ | ------ |
+| VGG19, Clean Test Set  | 0.6038  | 0.3692  | 0.226  | 0.1333  | 0.362 |
+| VGG19, Poisoned data set gen. FGSM  | 0.5733  | 0.3304  | 0.1914  | 0.1105  | 0.3317 |
+| VGG19, Poisoned data set gen. PGD  | 0.5784  | 0.3352  | 0.1938  | 0.1115  | 0.3308 |
+
+FGSM: eps= 0.02
+PGD: eps=0.03, alpha=0.08
 
 ## References
 
 [Show, Attend and Tell](https://arxiv.org/pdf/1502.03044.pdf)
 
-[Original Theano Implementation](https://github.com/kelvinxu/arctic-captions)
-
-[Neural Machine Translation By Jointly Learning to Align And Translate](https://arxiv.org/pdf/1409.0473.pdf)
-
-[Karpathy's Data splits](https://cs.stanford.edu/people/karpathy/deepimagesent/)
+[Forked. Implementation from](https://github.com/AaronCCWong/Show-Attend-and-Tell)

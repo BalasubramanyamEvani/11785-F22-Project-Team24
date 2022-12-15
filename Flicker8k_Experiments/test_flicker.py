@@ -7,13 +7,14 @@ from torch.autograd import Variable
 from torchvision import transforms
 import os
 from PIL import Image
+import re
 
 from decoder import Decoder
 from encoder import Encoder
 from tqdm import trange
 
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+nltk.download("wordnet")
+nltk.download("omw-1.4")
 
 data_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -108,9 +109,11 @@ def inference(
 
             caps = []
             for cap_set in captions:
+                cap_set = re.sub(r"['.,\"!?]+", "", cap_set)
+                cap_set = re.sub(r"\s+", " ", cap_set)
+                cap_set = cap_set.lower()
                 caption = cap_set.split()
-                caption = caption[1:-1]
-                caption = [token.lower() for token in caption]
+                caption = [token for token in caption]
                 caps.append(caption)
             references.append(caps)
 
@@ -138,21 +141,21 @@ def inference(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Show, Attend and Tell Inference')
+    parser = argparse.ArgumentParser(description="Show, Attend and Tell Inference")
     
-    parser.add_argument('--coco_index_to_token_path', type=str, default='./flicker8k/token_ind_map.json',
-                        help='path to flicker index to token map')
+    parser.add_argument("--coco_index_to_token_path", type=str, default="./flicker8k/token_ind_map.json",
+                        help="path to flicker index to token map")
     
-    parser.add_argument('--coco_token_to_index_path', type=str, default='./flicker8k/token_ind_map.json',
-                        help='path to flicker index to token map')
+    parser.add_argument("--coco_token_to_index_path", type=str, default="./flicker8k/token_ind_map.json",
+                        help="path to flicker token to index map")
     
-    parser.add_argument('--flicker_test_data_path', type=str, default='./flicker8k/images/',
-                        help='path to flicker data')
+    parser.add_argument("--flicker_test_data_path", type=str, default="./flicker8k/images/",
+                        help="path to flicker data")
 
-    parser.add_argument('--network', choices=['vgg19', 'resnet152'], default='vgg19',
-                        help='Network to use in the encoder (default: vgg19)')
+    parser.add_argument("--network", choices=["vgg19", "resnet152"], default="vgg19",
+                        help="Network to use in the encoder (default: vgg19)")
     
-    parser.add_argument('--model', type=str, help='path to model')
+    parser.add_argument("--model", type=str, help="path to model")
 
     parser.add_argument("--img_src_dir", type=str, help="where images are")
 

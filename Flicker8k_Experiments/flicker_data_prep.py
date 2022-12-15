@@ -35,6 +35,9 @@ def get_parser(parser=None, required=True):
     parser.add_argument(
         "--storage_path", type=str, help="path where the prepped data will be stored"
     )
+    parser.add_argument(
+        "--coco_word_dict", type=str, help="path to coco word dict"
+    )
 
     return parser
 
@@ -47,84 +50,65 @@ def populate_imgs(path):
 
 def populate_captions(path, split_regex=r"#\d\s*"):
     img_captions = {}
+    max_length = 0
     with open(path, "r") as fd:
         for line in fd.readlines():
             img, caption = re.split(split_regex, line.strip())
+            caption = re.sub(r"['.,\"!?]+", "", caption)
+            caption = re.sub(r"\s+", " ", caption)
+            caption = caption.lower()
             img, caption = img.strip(), caption.strip()
+            max_length = max(max_length, len(caption.split()))
             if img in img_captions:
                 img_captions[img].append(caption)
             else:
                 img_captions[img] = [caption]
-    return img_captions
+    
+    return img_captions, max_length
 
 
 def store_img_to_seq_mapping(args):
+    vocab = None
+    with open(args.coco_word_dict, "r") as fd:
+        vocab = json.load(fd)
+
     images = {
         "train": populate_imgs(args.train_images_path),
         "dev": populate_imgs(args.dev_images_path),
         "test": populate_imgs(args.test_images_path)
     }
-    image_captions = populate_captions(args.token_path)
-    
-    train_storage_path = os.path.join(args.storage_path, "prep-train.txt")
-    dev_storage_path = os.path.join(args.storage_path, "prep-dev.txt")
-    test_storage_path = os.path.join(args.storage_path, "prep-test.txt")
 
+    image_captions, max_length = populate_captions(args.token_path)
+    
     for data_split_type in images.keys():
-        path = None
-        if data_split_type == "train":
-            path = train_storage_path
-        if data_split_type == "dev":
-            path = dev_storage_path
-        if data_split_type == "test":
-            path = test_storage_path
+        img_path, cap_path = None, None
+
+        img_path = os.path.join(args.storage_path, f"prep-{data_split_type}-img.json")
+        cap_path = os.path.join(args.storage_path, f"prep-{data_split_type}-cap.json")
+
+        img_store_dict = {}
+        cap_store_dict = {}
+        index = 0
+
+        for img in images[data_split_type]:
+            for caption in image_captions[img]:
+                final_caption = f"<start> {caption} <eos> "
+                final_caption = (final_caption + "<pad> " * (max_length - len(caption.split()))).strip()
+                final_caption_ind = []
+                for token in final_caption.split():
+                    if token in vocab:
+                        final_caption_ind.append(vocab[token])
+                    else:
+                        final_caption_ind.append(vocab["<unk>"])
+                img_store_dict[index] = img
+                cap_store_dict[index] = final_caption_ind
+                index += 1
         
-        with open(path, "w") as fd:
-            for img in images[data_split_type]:
-                for caption in image_captions[img]:
-                    fd.write(f"{img}\t<SOS> {caption} <EOS>\n")
-
-
-def store_vocab(args, split_regex=r"#\d\s*", threshold=0):
-    indices_to_token = {
-        0: "<SOS>",
-        1: "<EOS>",
-        2: "<PAD>",
-        3: "<UNK>"
-    }
-    token_to_indices = {
-        "<SOS>": 0,
-        "<EOS>": 1,
-        "<PAD>": 2,
-        "<UNK>": 3,
-    }
-    token_path = args.token_path
-    token_freq = {}
-    curr_index = 4
-
-    with open(token_path, "r") as fd:
-        for line in fd.readlines():
-            _, caption = re.split(split_regex, line.strip())
-            caption_tokens = caption.split()
-            for token in caption_tokens:
-                if token in token_freq:
-                    token_freq[token] += 1
-                else:
-                    token_freq[token] = 0
-    
-    for token, count in token_freq.items():
-        indices_to_token[curr_index] = token
-        token_to_indices[token] = curr_index
-        curr_index += 1 
-    
-    ind_token_map = json.dumps(indices_to_token)
-    token_ind_map = json.dumps(token_to_indices)
-
-    with open(os.path.join(args.storage_path, "ind_token_map.json"), "w") as fd:
-        fd.write(ind_token_map)
-    
-    with open(os.path.join(args.storage_path, "token_ind_map.json"), "w") as fd:
-        fd.write(token_ind_map)
+        with open(img_path, "w") as fd:
+            json.dump(img_store_dict, fd)
+        
+        with open(cap_path, "w") as fd:
+            json.dump(cap_store_dict, fd)
 
 
 def main(cmd_args):
@@ -138,7 +122,6 @@ def main(cmd_args):
     assert os.path.exists(args.storage_path), "invalid storage data path"
 
     store_img_to_seq_mapping(args)
-    store_vocab(args)
 
 
 if __name__ == "__main__":
