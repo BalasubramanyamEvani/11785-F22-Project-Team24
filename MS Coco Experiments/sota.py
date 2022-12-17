@@ -38,6 +38,17 @@ def predict_step(image_paths):
     return preds
 
 
-predict_step(
-    ["./data/data/coco/val2017/000000000139.jpg"]
-)  # [{'generated_text': 'a living room with a fireplace and a table '}]
+# predict_step(
+#     ["./data/data/coco/val2017/000000000139.jpg"]
+# )  # [{'generated_text': 'a living room with a fireplace and a table '}]
+
+preds = predict_step(
+    [
+        "./data/test_final/1.jpg",
+        "./data/test_final/2.jpg",
+        "./data/test_final/3.jpg",
+        "./data/test_final/4.jpg",
+        "./data/test_final/5.jpg",
+        "./data/test_final/6.jpg",
+    ]
+)
